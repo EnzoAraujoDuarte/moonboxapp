@@ -6,6 +6,16 @@ dotenv.config();
 
 const app = express();
 app.use(express.json());
+// Basic CORS for frontend
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', FRONTEND_URL);
+  res.header('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, x-shopify-shop-domain, x-session-id');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  if (req.method === 'OPTIONS') return res.sendStatus(200);
+  next();
+});
 app.use(cookieParser());
 
 // Routes

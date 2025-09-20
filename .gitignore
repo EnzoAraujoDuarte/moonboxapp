@@ -1,9 +1,10 @@
 node_modules/
 .env*
 .DS_Store
-coverage/.next/
+coverage/
+.next/
 dist/
 legacy-vite/
-`.vercel/
-`.turbo/
-`.shopify-cli/
+.vercel/
+.turbo/
+.shopify-cli/
