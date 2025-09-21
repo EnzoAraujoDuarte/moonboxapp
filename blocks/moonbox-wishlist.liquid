@@ -1,0 +1,405 @@
+{% comment %}
+  MoonBox Wishlist App Block
+  Adiciona um botão de wishlist que pode ser inserido em qualquer lugar do tema
+{% endcomment %}
+
+<div class="moonbox-wishlist-block" data-product-id="{{ product.id }}" data-variant-id="{{ product.selected_or_first_available_variant.id }}">
+  <style>
+    .moonbox-wishlist-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      background: {{ block.settings.button_bg_color | default: '#000000' }};
+      color: {{ block.settings.button_text_color | default: '#ffffff' }};
+      border: none;
+      border-radius: {{ block.settings.button_border_radius | default: 4 }}px;
+      cursor: pointer;
+      font-size: {{ block.settings.button_font_size | default: 14 }}px;
+      font-weight: {{ block.settings.button_font_weight | default: 500 }};
+      text-decoration: none;
+      transition: all 0.3s ease;
+      min-width: {{ block.settings.button_min_width | default: 120 }}px;
+      justify-content: center;
+    }
+
+    .moonbox-wishlist-btn:hover {
+      opacity: 0.8;
+      transform: translateY(-1px);
+    }
+
+    .moonbox-wishlist-btn.added {
+      background: {{ block.settings.added_bg_color | default: '#28a745' }};
+    }
+
+    .moonbox-wishlist-icon {
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
+    }
+
+    .moonbox-wishlist-text {
+      font-family: inherit;
+    }
+
+    @media (max-width: 768px) {
+      .moonbox-wishlist-btn {
+        font-size: {{ block.settings.mobile_font_size | default: 12 }}px;
+        padding: 10px 14px;
+        min-width: {{ block.settings.mobile_min_width | default: 100 }}px;
+      }
+    }
+  </style>
+
+  <button class="moonbox-wishlist-btn" type="button" data-moonbox-wishlist-toggle>
+    <svg class="moonbox-wishlist-icon" viewBox="0 0 24 24">
+      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+    </svg>
+    <span class="moonbox-wishlist-text">
+      {{ block.settings.button_text | default: 'Adicionar à Lista' }}
+    </span>
+  </button>
+</div>
+
+<script>
+(function() {
+  'use strict';
+  
+  const BACKEND_URL = '{{ block.settings.backend_url | default: "http://localhost:8081" }}';
+  const SHOP_DOMAIN = '{{ shop.permanent_domain }}';
+  
+  // Função para obter ou criar session ID
+  function getSessionId() {
+    let sessionId = localStorage.getItem('moonbox_session_id');
+    if (!sessionId) {
+      sessionId = 'session_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+      localStorage.setItem('moonbox_session_id', sessionId);
+    }
+    return sessionId;
+  }
+
+  // Função para fazer requisições à API
+  async function apiRequest(endpoint, options = {}) {
+    const url = `${BACKEND_URL}${endpoint}`;
+    const defaultOptions = {
+      headers: {
+        'Content-Type': 'application/json',
+        'x-shopify-shop-domain': SHOP_DOMAIN,
+        'x-session-id': getSessionId()
+      }
+    };
+    
+    try {
+      const response = await fetch(url, { ...defaultOptions, ...options });
+      return await response.json();
+    } catch (error) {
+      console.error('MoonBox API Error:', error);
+      return { ok: false, error: error.message };
+    }
+  }
+
+  // Função para adicionar item à wishlist
+  async function addToWishlist(productId, variantId) {
+    const payload = {
+      product_id: productId,
+      variant_id: variantId,
+      shop_domain: SHOP_DOMAIN,
+      session_id: getSessionId(),
+      product_title: '{{ product.title | escape }}',
+      product_price: '{{ product.price | money }}',
+      product_image_url: '{{ product.featured_image | img_url: "300x300" }}'
+    };
+
+    return await apiRequest('/api/wishlist', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  }
+
+  // Função para remover item da wishlist
+  async function removeFromWishlist(itemId) {
+    return await apiRequest(`/api/wishlist/${itemId}`, {
+      method: 'DELETE'
+    });
+  }
+
+  // Função para verificar se item está na wishlist
+  async function checkWishlistStatus(productId, variantId) {
+    const result = await apiRequest(`/api/wishlist?shop_domain=${SHOP_DOMAIN}`);
+    if (result.ok && result.items) {
+      return result.items.find(item => 
+        item.product_id === productId && item.variant_id === variantId
+      );
+    }
+    return null;
+  }
+
+  // Inicializar o botão de wishlist
+  function initWishlistButton() {
+    const blocks = document.querySelectorAll('.moonbox-wishlist-block');
+    
+    blocks.forEach(async (block) => {
+      const button = block.querySelector('[data-moonbox-wishlist-toggle]');
+      const textElement = button.querySelector('.moonbox-wishlist-text');
+      const productId = block.dataset.productId;
+      const variantId = block.dataset.variantId;
+      
+      if (!button || !productId) return;
+
+      // Verificar status inicial
+      const existingItem = await checkWishlistStatus(productId, variantId);
+      if (existingItem) {
+        button.classList.add('added');
+        textElement.textContent = '{{ block.settings.added_text | default: "Na Lista ❤️" }}';
+        button.dataset.itemId = existingItem.id;
+      }
+
+      // Event listener para toggle
+      button.addEventListener('click', async function(e) {
+        e.preventDefault();
+        
+        const isAdded = button.classList.contains('added');
+        button.disabled = true;
+        
+        try {
+          if (isAdded) {
+            // Remover da wishlist
+            const itemId = button.dataset.itemId;
+            const result = await removeFromWishlist(itemId);
+            
+            if (result.ok) {
+              button.classList.remove('added');
+              textElement.textContent = '{{ block.settings.button_text | default: "Adicionar à Lista" }}';
+              delete button.dataset.itemId;
+              
+              // Mostrar feedback
+              if ('{{ block.settings.show_notifications }}' === 'true') {
+                showNotification('{{ block.settings.removed_message | default: "Removido da lista de desejos" }}', 'success');
+              }
+            }
+          } else {
+            // Adicionar à wishlist
+            const result = await addToWishlist(productId, variantId);
+            
+            if (result.ok) {
+              button.classList.add('added');
+              textElement.textContent = '{{ block.settings.added_text | default: "Na Lista ❤️" }}';
+              button.dataset.itemId = result.item?.id || result.item_id;
+              
+              // Mostrar feedback
+              if ('{{ block.settings.show_notifications }}' === 'true') {
+                showNotification('{{ block.settings.added_message | default: "Adicionado à lista de desejos!" }}', 'success');
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Wishlist toggle error:', error);
+          if ('{{ block.settings.show_notifications }}' === 'true') {
+            showNotification('{{ block.settings.error_message | default: "Erro ao atualizar lista de desejos" }}', 'error');
+          }
+        } finally {
+          button.disabled = false;
+        }
+      });
+    });
+  }
+
+  // Função para mostrar notificações
+  function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: ${type === 'error' ? '#dc3545' : '#28a745'};
+      color: white;
+      padding: 12px 20px;
+      border-radius: 4px;
+      z-index: 10000;
+      font-size: 14px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      animation: slideIn 0.3s ease;
+    `;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+      notification.style.animation = 'slideOut 0.3s ease';
+      setTimeout(() => notification.remove(), 300);
+    }, 3000);
+  }
+
+  // CSS para animações das notificações
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes slideOut {
+      from { transform: translateX(0); opacity: 1; }
+      to { transform: translateX(100%); opacity: 0; }
+    }
+  `;
+  document.head.appendChild(style);
+
+  // Inicializar quando o DOM estiver pronto
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initWishlistButton);
+  } else {
+    initWishlistButton();
+  }
+
+  // Re-inicializar em mudanças de variante (para temas que usam AJAX)
+  document.addEventListener('variant:change', initWishlistButton);
+})();
+</script>
+
+{% schema %}
+{
+  "name": "MoonBox Wishlist",
+  "target": "section",
+  "available_if": "{{ app.metafields.moonbox.enabled }}",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Configurações do Botão"
+    },
+    {
+      "type": "text",
+      "id": "button_text",
+      "label": "Texto do Botão",
+      "default": "Adicionar à Lista"
+    },
+    {
+      "type": "text",
+      "id": "added_text",
+      "label": "Texto quando Adicionado",
+      "default": "Na Lista ❤️"
+    },
+    {
+      "type": "color",
+      "id": "button_bg_color",
+      "label": "Cor de Fundo",
+      "default": "#000000"
+    },
+    {
+      "type": "color",
+      "id": "button_text_color",
+      "label": "Cor do Texto",
+      "default": "#ffffff"
+    },
+    {
+      "type": "color",
+      "id": "added_bg_color",
+      "label": "Cor de Fundo (Adicionado)",
+      "default": "#28a745"
+    },
+    {
+      "type": "range",
+      "id": "button_border_radius",
+      "label": "Raio da Borda (px)",
+      "min": 0,
+      "max": 20,
+      "step": 1,
+      "default": 4
+    },
+    {
+      "type": "range",
+      "id": "button_font_size",
+      "label": "Tamanho da Fonte (px)",
+      "min": 10,
+      "max": 24,
+      "step": 1,
+      "default": 14
+    },
+    {
+      "type": "select",
+      "id": "button_font_weight",
+      "label": "Peso da Fonte",
+      "options": [
+        { "value": "400", "label": "Normal" },
+        { "value": "500", "label": "Médio" },
+        { "value": "600", "label": "Semi-Bold" },
+        { "value": "700", "label": "Bold" }
+      ],
+      "default": "500"
+    },
+    {
+      "type": "range",
+      "id": "button_min_width",
+      "label": "Largura Mínima (px)",
+      "min": 80,
+      "max": 200,
+      "step": 10,
+      "default": 120
+    },
+    {
+      "type": "header",
+      "content": "Configurações Mobile"
+    },
+    {
+      "type": "range",
+      "id": "mobile_font_size",
+      "label": "Tamanho da Fonte Mobile (px)",
+      "min": 10,
+      "max": 20,
+      "step": 1,
+      "default": 12
+    },
+    {
+      "type": "range",
+      "id": "mobile_min_width",
+      "label": "Largura Mínima Mobile (px)",
+      "min": 60,
+      "max": 150,
+      "step": 10,
+      "default": 100
+    },
+    {
+      "type": "header",
+      "content": "Notificações"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_notifications",
+      "label": "Mostrar Notificações",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "added_message",
+      "label": "Mensagem de Adicionado",
+      "default": "Adicionado à lista de desejos!"
+    },
+    {
+      "type": "text",
+      "id": "removed_message",
+      "label": "Mensagem de Removido",
+      "default": "Removido da lista de desejos"
+    },
+    {
+      "type": "text",
+      "id": "error_message",
+      "label": "Mensagem de Erro",
+      "default": "Erro ao atualizar lista de desejos"
+    },
+    {
+      "type": "header",
+      "content": "Configurações Técnicas"
+    },
+    {
+      "type": "url",
+      "id": "backend_url",
+      "label": "URL do Backend",
+      "info": "Deixe em branco para usar localhost:8081 em desenvolvimento"
+    }
+  ],
+  "presets": [
+    {
+      "name": "MoonBox Wishlist Button"
+    }
+  ]
+}
+{% endschema %}
