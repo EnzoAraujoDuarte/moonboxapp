@@ -7,5 +7,7 @@ export function AppBridgeProvider({ children }) {
   // A configuração do App Bridge é feita via script tag
   return children;
 }
+>>>>>>> 33d6b591324438fa61d17deac5b39b1c48c028cb
+}
 
 
