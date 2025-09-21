@@ -1,6 +1,8 @@
-const express = require('express');
-const { shopifyApi, LATEST_API_VERSION } = require('@shopify/shopify-api');
-const { supabase } = require('../db/supabaseClient');
+import 'dotenv/config';
+import '@shopify/shopify-api/adapters/node';
+import express from 'express';
+import { shopifyApi, LATEST_API_VERSION } from '@shopify/shopify-api';
+import { supabase } from '../db/supabaseClient.js';
 
 const router = express.Router();
 
@@ -8,35 +10,27 @@ const SHOPIFY_API_KEY = process.env.SHOPIFY_API_KEY;
 const SHOPIFY_API_SECRET = process.env.SHOPIFY_API_SECRET;
 const SHOPIFY_API_SCOPES = (process.env.SHOPIFY_API_SCOPES || '').split(',').map((s) => s.trim());
 const HOST = process.env.HOST;
+const SHOPIFY_ENABLED = Boolean(SHOPIFY_API_KEY && SHOPIFY_API_SECRET && HOST);
 
-if (!SHOPIFY_API_KEY || !SHOPIFY_API_SECRET || !HOST) {
-  throw new Error('Missing Shopify env vars (SHOPIFY_API_KEY, SHOPIFY_API_SECRET, HOST)');
+let shopify;
+if (SHOPIFY_ENABLED) {
+  shopify = shopifyApi({
+    apiKey: SHOPIFY_API_KEY,
+    apiSecretKey: SHOPIFY_API_SECRET,
+    scopes: SHOPIFY_API_SCOPES,
+    hostScheme: HOST.startsWith('https') ? 'https' : 'http',
+    hostName: HOST.replace(/^https?:\/\//, ''),
+    apiVersion: LATEST_API_VERSION,
+    isEmbeddedApp: true,
+  });
 }
 
-const shopify = shopifyApi({
-  apiKey: SHOPIFY_API_KEY,
-  apiSecretKey: SHOPIFY_API_SECRET,
-  scopes: SHOPIFY_API_SCOPES,
-  hostScheme: HOST.startsWith('https') ? 'https' : 'http',
-  hostName: HOST.replace(/^https?:\/\//, ''),
-  apiVersion: LATEST_API_VERSION,
-  isEmbeddedApp: true,
-});
-
-// Util: persist session in Supabase
-async function persistSession(session) {
-  const payload = {
-    id: session.id,
-    shop: session.shop,
-    state: session.state,
-    is_online: session.isOnline,
-    scope: session.scope,
-    access_token: session.accessToken,
-    expires_at: session.expires ? new Date(session.expires).toISOString() : null,
-    user_id: session?.onlineAccessInfo?.associated_user?.id || null,
-    user_token: session?.onlineAccessInfo ? JSON.stringify(session.onlineAccessInfo) : null,
-  };
-  const { error } = await supabase.from('shopify_sessions').upsert(payload, { onConflict: 'id' });
+// Persist shop access token na tabela shops
+async function persistShop(session) {
+  const shop_domain = session.shop;
+  const access_token = session.accessToken;
+  const payload = { shop_domain, access_token, is_active: true };
+  const { error } = await supabase.from('shops').upsert(payload, { onConflict: 'shop_domain' });
   if (error) throw error;
 }
 
@@ -46,6 +40,7 @@ async function deleteSessionById(id) {
 
 // /auth entrypoint
 router.get('/auth', async (req, res) => {
+  if (!SHOPIFY_ENABLED) return res.status(503).send('Shopify OAuth not configured');
   try {
     const shop = req.query.shop;
     if (!shop) return res.status(400).send('Missing shop');
@@ -67,9 +62,10 @@ router.get('/auth', async (req, res) => {
 
 // /auth/callback
 router.get('/auth/callback', async (req, res) => {
+  if (!SHOPIFY_ENABLED) return res.status(503).send('Shopify OAuth not configured');
   try {
     const { session, cookies } = await shopify.auth.callback({ req, res });
-    await persistSession(session);
+    await persistShop(session);
 
     // Set the online/offline cookies returned by Shopify SDK
     cookies.forEach((cookie) => res.cookie(cookie.name, cookie.value, cookie.options));
@@ -87,13 +83,14 @@ router.get('/auth/callback', async (req, res) => {
 
 // Optional: uninstall webhook handler cleanup
 router.post('/webhooks/app_uninstalled', express.text({ type: '*/*' }), async (req, res) => {
+  if (!SHOPIFY_ENABLED) return res.sendStatus(503);
   try {
     const verified = await shopify.webhooks.validate({ rawBody: req.body, rawRequest: req, rawResponse: res });
     if (!verified) return res.sendStatus(401);
     const topic = req.headers['x-shopify-topic'];
     if (topic === 'app/uninstalled') {
       const shop = req.headers['x-shopify-shop-domain'];
-      await supabase.from('shopify_sessions').delete().eq('shop', shop);
+      await supabase.from('shops').update({ is_active: false, access_token: null }).eq('shop_domain', shop);
     }
     res.sendStatus(200);
   } catch (err) {
@@ -103,6 +100,6 @@ router.post('/webhooks/app_uninstalled', express.text({ type: '*/*' }), async (r
   }
 });
 
-module.exports = { shopify, router: router };
+export { shopify, router };
 
 

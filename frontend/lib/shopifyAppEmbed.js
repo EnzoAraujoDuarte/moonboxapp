@@ -8,9 +8,9 @@ export function mountWishlistButton({ targetId = 'moonbox-wishlist', productId, 
   import('../src/components/WishlistButton').then(({ default: WishlistButton }) => {
     const React = require('react');
     const ReactDOM = require('react-dom');
-    process.env.NEXT_PUBLIC_BACKEND_URL = backendUrl;
+    // Não sobrescreva process.env em runtime; passe via props
     ReactDOM.render(
-      React.createElement(WishlistButton, { productId, variantId, shopDomain }),
+      React.createElement(WishlistButton, { productId, variantId, shopDomain, backendUrl }),
       root,
     );
   });
