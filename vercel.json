@@ -1,26 +1,8 @@
 {
-  "version": 2,
-  "name": "moonbox-frontend",
-  "builds": [
-    {
-      "src": "frontend/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "frontend/out"
-      }
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/frontend/$1"
-    }
-  ],
   "buildCommand": "cd frontend && npm run build",
   "outputDirectory": "frontend/out",
   "installCommand": "cd frontend && npm install",
   "framework": "nextjs",
-  "functions": {},
   "rewrites": [
     {
       "source": "/(.*)",
