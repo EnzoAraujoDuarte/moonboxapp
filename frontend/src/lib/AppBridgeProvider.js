@@ -1,18 +1,11 @@
-import React, { useMemo } from 'react';
-import { Provider } from '@shopify/app-bridge-react';
+import React from 'react';
 
-function getHostFromUrl() {
-  if (typeof window === 'undefined') return undefined;
-  const params = new URLSearchParams(window.location.search);
-  return params.get('host') || undefined;
-}
-
+// Na versão 4.x do @shopify/app-bridge-react, o Provider foi removido
+// A configuração agora é feita através do script app-bridge.js no HTML
 export function AppBridgeProvider({ children }) {
-  const apiKey = process.env.NEXT_PUBLIC_SHOPIFY_API_KEY;
-  const host = useMemo(() => getHostFromUrl(), []);
-  const config = host && apiKey ? { apiKey, host, forceRedirect: true } : undefined;
-  if (!config) return children;
-  return <Provider config={config}>{children}</Provider>;
+  // Simplesmente retorna os children sem wrapper
+  // A configuração do App Bridge é feita via script tag
+  return children;
 }
 
 
