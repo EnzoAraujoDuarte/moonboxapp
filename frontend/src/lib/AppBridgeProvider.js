@@ -1,13 +1,11 @@
 import React from 'react';
 
-// Na versão 4.x do @shopify/app-bridge-react, o Provider foi removido
-// A configuração agora é feita através do script app-bridge.js no HTML
+// In App Bridge v4.x, the Provider has been removed
+// Configuration is now done through the app-bridge.js script in HTML
 export function AppBridgeProvider({ children }) {
-  // Simplesmente retorna os children sem wrapper
-  // A configuração do App Bridge é feita via script tag
+  // Simply returns children without wrapper
+  // App Bridge configuration is handled via script tag
   return children;
-}
->>>>>>> 33d6b591324438fa61d17deac5b39b1c48c028cb
 }
 
 
