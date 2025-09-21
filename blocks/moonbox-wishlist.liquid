@@ -1,63 +1,212 @@
 {% comment %}
-  MoonBox Wishlist App Block
-  Adiciona um botão de wishlist que pode ser inserido em qualquer lugar do tema
+  MoonBox Wishlist App Block - Enhanced Dynamic Version
+  Advanced wishlist button with comprehensive customization options
 {% endcomment %}
 
-<div class="moonbox-wishlist-block" data-product-id="{{ product.id }}" data-variant-id="{{ product.selected_or_first_available_variant.id }}">
+<div class="moonbox-wishlist-block" 
+     data-product-id="{{ product.id }}" 
+     data-variant-id="{{ product.selected_or_first_available_variant.id }}"
+     data-product-handle="{{ product.handle }}"
+     data-collection-id="{{ collection.id | default: '' }}">
+  
   <style>
     .moonbox-wishlist-btn {
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      padding: 12px 16px;
+      gap: {{ block.settings.icon_text_gap | default: 8 }}px;
+      padding: {{ block.settings.button_padding_vertical | default: 12 }}px {{ block.settings.button_padding_horizontal | default: 16 }}px;
       background: {{ block.settings.button_bg_color | default: '#000000' }};
       color: {{ block.settings.button_text_color | default: '#ffffff' }};
-      border: none;
+      border: {{ block.settings.border_width | default: 0 }}px solid {{ block.settings.border_color | default: 'transparent' }};
       border-radius: {{ block.settings.button_border_radius | default: 4 }}px;
       cursor: pointer;
       font-size: {{ block.settings.button_font_size | default: 14 }}px;
       font-weight: {{ block.settings.button_font_weight | default: 500 }};
+      font-family: {{ block.settings.font_family | default: 'inherit' }};
       text-decoration: none;
-      transition: all 0.3s ease;
+      text-transform: {{ block.settings.text_transform | default: 'none' }};
+      letter-spacing: {{ block.settings.letter_spacing | default: 0 }}px;
+      transition: all {{ block.settings.transition_duration | default: 0.3 }}s {{ block.settings.transition_easing | default: 'ease' }};
       min-width: {{ block.settings.button_min_width | default: 120 }}px;
-      justify-content: center;
+      max-width: {{ block.settings.button_max_width | default: 'none' }};
+      justify-content: {{ block.settings.content_alignment | default: 'center' }};
+      position: relative;
+      overflow: hidden;
+      box-shadow: {{ block.settings.box_shadow | default: 'none' }};
+      {% if block.settings.gradient_bg %}
+        background: linear-gradient({{ block.settings.gradient_direction | default: '45deg' }}, {{ block.settings.button_bg_color | default: '#000000' }}, {{ block.settings.gradient_end_color | default: '#333333' }});
+      {% endif %}
     }
 
     .moonbox-wishlist-btn:hover {
-      opacity: 0.8;
-      transform: translateY(-1px);
+      {% if block.settings.hover_effect == 'opacity' %}
+        opacity: {{ block.settings.hover_opacity | default: 0.8 }};
+      {% elsif block.settings.hover_effect == 'scale' %}
+        transform: scale({{ block.settings.hover_scale | default: 1.05 }});
+      {% elsif block.settings.hover_effect == 'lift' %}
+        transform: translateY(-{{ block.settings.hover_lift | default: 2 }}px);
+      {% elsif block.settings.hover_effect == 'glow' %}
+        box-shadow: 0 0 {{ block.settings.glow_size | default: 10 }}px {{ block.settings.glow_color | default: 'rgba(0,0,0,0.3)' }};
+      {% endif %}
+      
+      {% if block.settings.hover_bg_color %}
+        background: {{ block.settings.hover_bg_color }};
+      {% endif %}
+      
+      {% if block.settings.hover_text_color %}
+        color: {{ block.settings.hover_text_color }};
+      {% endif %}
     }
 
     .moonbox-wishlist-btn.added {
       background: {{ block.settings.added_bg_color | default: '#28a745' }};
+      color: {{ block.settings.added_text_color | default: '#ffffff' }};
+      {% if block.settings.added_border_color %}
+        border-color: {{ block.settings.added_border_color }};
+      {% endif %}
+    }
+
+    .moonbox-wishlist-btn.loading {
+      pointer-events: none;
+      opacity: 0.7;
+    }
+
+    .moonbox-wishlist-btn.loading .moonbox-wishlist-icon {
+      animation: spin {{ block.settings.loading_speed | default: 1 }}s linear infinite;
     }
 
     .moonbox-wishlist-icon {
-      width: 16px;
-      height: 16px;
+      width: {{ block.settings.icon_size | default: 16 }}px;
+      height: {{ block.settings.icon_size | default: 16 }}px;
       fill: currentColor;
+      transition: transform {{ block.settings.transition_duration | default: 0.3 }}s ease;
+      {% if block.settings.icon_style == 'outline' %}
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+      {% endif %}
     }
 
     .moonbox-wishlist-text {
       font-family: inherit;
+      {% if block.settings.hide_text_mobile %}
+        @media (max-width: 768px) {
+          display: none;
+        }
+      {% endif %}
     }
 
+    .moonbox-wishlist-counter {
+      position: absolute;
+      top: -{{ block.settings.counter_offset | default: 8 }}px;
+      right: -{{ block.settings.counter_offset | default: 8 }}px;
+      background: {{ block.settings.counter_bg_color | default: '#ff4444' }};
+      color: {{ block.settings.counter_text_color | default: '#ffffff' }};
+      border-radius: 50%;
+      width: {{ block.settings.counter_size | default: 18 }}px;
+      height: {{ block.settings.counter_size | default: 18 }}px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: {{ block.settings.counter_font_size | default: 10 }}px;
+      font-weight: bold;
+    }
+
+    /* Responsive Design */
     @media (max-width: 768px) {
       .moonbox-wishlist-btn {
         font-size: {{ block.settings.mobile_font_size | default: 12 }}px;
-        padding: 10px 14px;
+        padding: {{ block.settings.mobile_padding_vertical | default: 10 }}px {{ block.settings.mobile_padding_horizontal | default: 14 }}px;
         min-width: {{ block.settings.mobile_min_width | default: 100 }}px;
+        gap: {{ block.settings.mobile_icon_gap | default: 6 }}px;
+      }
+      
+      .moonbox-wishlist-icon {
+        width: {{ block.settings.mobile_icon_size | default: 14 }}px;
+        height: {{ block.settings.mobile_icon_size | default: 14 }}px;
       }
     }
+
+    /* Animation Keyframes */
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+
+    @keyframes bounce {
+      0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+      40% { transform: translateY(-10px); }
+      60% { transform: translateY(-5px); }
+    }
+
+    /* Custom Animation Classes */
+    .moonbox-wishlist-btn.animate-pulse {
+      animation: pulse {{ block.settings.animation_duration | default: 1 }}s ease-in-out infinite;
+    }
+
+    .moonbox-wishlist-btn.animate-bounce {
+      animation: bounce {{ block.settings.animation_duration | default: 1 }}s ease-in-out;
+    }
+
+    /* Theme Integration */
+    {% if block.settings.inherit_theme_styles %}
+      .moonbox-wishlist-btn {
+        font-family: var(--font-body-family, inherit);
+        border-radius: var(--buttons-radius, {{ block.settings.button_border_radius | default: 4 }}px);
+      }
+    {% endif %}
   </style>
 
-  <button class="moonbox-wishlist-btn" type="button" data-moonbox-wishlist-toggle>
-    <svg class="moonbox-wishlist-icon" viewBox="0 0 24 24">
-      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-    </svg>
+  <button class="moonbox-wishlist-btn {% if block.settings.initial_animation %}animate-{{ block.settings.initial_animation }}{% endif %}" 
+          type="button" 
+          data-moonbox-wishlist-toggle
+          aria-label="{{ block.settings.aria_label | default: 'Toggle wishlist' }}"
+          {% if block.settings.show_tooltip %}
+            title="{{ block.settings.tooltip_text | default: 'Add to wishlist' }}"
+          {% endif %}>
+    
+    {% if block.settings.show_counter %}
+      <span class="moonbox-wishlist-counter" data-wishlist-count style="display: none;">0</span>
+    {% endif %}
+
+    {% if block.settings.icon_position == 'left' or block.settings.icon_position == blank %}
+      <svg class="moonbox-wishlist-icon" viewBox="0 0 24 24" data-icon-default>
+        {% if block.settings.icon_style == 'filled' %}
+          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+        {% else %}
+          <path d="M12.1 18.55l-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05zM16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.31C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3z"/>
+        {% endif %}
+      </svg>
+      
+      <svg class="moonbox-wishlist-icon" viewBox="0 0 24 24" data-icon-added style="display: none;">
+        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+      </svg>
+    {% endif %}
+
     <span class="moonbox-wishlist-text">
-      {{ block.settings.button_text | default: 'Adicionar à Lista' }}
+      <span data-text-default>{{ block.settings.button_text | default: 'Add to Wishlist' }}</span>
+      <span data-text-added style="display: none;">{{ block.settings.added_text | default: 'In Wishlist ❤️' }}</span>
+      <span data-text-loading style="display: none;">{{ block.settings.loading_text | default: 'Loading...' }}</span>
     </span>
+
+    {% if block.settings.icon_position == 'right' %}
+      <svg class="moonbox-wishlist-icon" viewBox="0 0 24 24" data-icon-default>
+        {% if block.settings.icon_style == 'filled' %}
+          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+        {% else %}
+          <path d="M12.1 18.55l-.1.1-.1-.1C7.14 14.24 4 11.39 4 8.5 4 6.5 5.5 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5c2 0 3.5 1.5 3.5 3.5 0 2.89-3.14 5.74-7.9 10.05zM16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.31C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3z"/>
+        {% endif %}
+      </svg>
+      
+      <svg class="moonbox-wishlist-icon" viewBox="0 0 24 24" data-icon-added style="display: none;">
+        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+      </svg>
+    {% endif %}
   </button>
 </div>
 
@@ -67,36 +216,478 @@
   
   const BACKEND_URL = '{{ block.settings.backend_url | default: "http://localhost:8081" }}';
   const SHOP_DOMAIN = '{{ shop.permanent_domain }}';
+  const DEBUG_MODE = {{ block.settings.debug_mode | default: false }};
   
-  // Função para obter ou criar session ID
+  // Enhanced logging
+  function log(message, type = 'info') {
+    if (DEBUG_MODE) {
+      console[type](`[MoonBox Wishlist] ${message}`);
+    }
+  }
+
+  // Enhanced session management
   function getSessionId() {
     let sessionId = localStorage.getItem('moonbox_session_id');
     if (!sessionId) {
       sessionId = 'session_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
       localStorage.setItem('moonbox_session_id', sessionId);
+      log(`Created new session: ${sessionId}`);
     }
     return sessionId;
   }
 
-  // Função para fazer requisições à API
-  async function apiRequest(endpoint, options = {}) {
+  // Enhanced API request with retry logic
+  async function apiRequest(endpoint, options = {}, retries = {{ block.settings.api_retries | default: 3 }}) {
     const url = `${BACKEND_URL}${endpoint}`;
     const defaultOptions = {
       headers: {
         'Content-Type': 'application/json',
         'x-shopify-shop-domain': SHOP_DOMAIN,
-        'x-session-id': getSessionId()
-      }
+        'x-session-id': getSessionId(),
+        'x-moonbox-version': '2.0.0'
+      },
+      timeout: {{ block.settings.api_timeout | default: 10000 }}
     };
     
-    try {
-      const response = await fetch(url, { ...defaultOptions, ...options });
-      return await response.json();
-    } catch (error) {
-      console.error('MoonBox API Error:', error);
-      return { ok: false, error: error.message };
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        log(`API Request (attempt ${attempt}): ${endpoint}`);
+        const response = await fetch(url, { ...defaultOptions, ...options });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        log(`API Response: ${JSON.stringify(data)}`);
+        return data;
+      } catch (error) {
+        log(`API Error (attempt ${attempt}): ${error.message}`, 'error');
+        
+        if (attempt === retries) {
+          return { ok: false, error: error.message };
+        }
+        
+        // Exponential backoff
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+      }
     }
   }
+
+  // Enhanced wishlist operations
+  async function addToWishlist(productId, variantId, productData = {}) {
+    const payload = {
+      product_id: productId,
+      variant_id: variantId,
+      shop_domain: SHOP_DOMAIN,
+      session_id: getSessionId(),
+      product_title: productData.title || '{{ product.title | escape }}',
+      product_price: productData.price || '{{ product.price | money }}',
+      product_image_url: productData.image || '{{ product.featured_image | img_url: "300x300" }}',
+      product_handle: productData.handle || '{{ product.handle }}',
+      collection_id: productData.collection_id || '{{ collection.id | default: "" }}',
+      added_at: new Date().toISOString(),
+      user_agent: navigator.userAgent,
+      referrer: document.referrer
+    };
+
+    return await apiRequest('/api/wishlist', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  }
+
+  async function removeFromWishlist(itemId) {
+    return await apiRequest(`/api/wishlist/${itemId}`, {
+      method: 'DELETE'
+    });
+  }
+
+  async function getWishlistItems() {
+    const params = new URLSearchParams({
+      shop_domain: SHOP_DOMAIN,
+      session_id: getSessionId(),
+      include_metadata: 'true'
+    });
+    
+    return await apiRequest(`/api/wishlist?${params.toString()}`);
+  }
+
+  // Enhanced UI state management
+  function updateButtonState(button, state, data = {}) {
+    const textDefault = button.querySelector('[data-text-default]');
+    const textAdded = button.querySelector('[data-text-added]');
+    const textLoading = button.querySelector('[data-text-loading]');
+    const iconDefault = button.querySelector('[data-icon-default]');
+    const iconAdded = button.querySelector('[data-icon-added]');
+    const counter = button.querySelector('[data-wishlist-count]');
+
+    // Reset all states
+    button.classList.remove('added', 'loading');
+    [textDefault, textAdded, textLoading].forEach(el => {
+      if (el) el.style.display = 'none';
+    });
+    [iconDefault, iconAdded].forEach(el => {
+      if (el) el.style.display = 'none';
+    });
+
+    switch (state) {
+      case 'loading':
+        button.classList.add('loading');
+        if (textLoading) textLoading.style.display = 'inline';
+        if (iconDefault) iconDefault.style.display = 'inline';
+        break;
+        
+      case 'added':
+        button.classList.add('added');
+        if (textAdded) textAdded.style.display = 'inline';
+        if (iconAdded) iconAdded.style.display = 'inline';
+        button.dataset.itemId = data.itemId;
+        
+        // Trigger success animation
+        if ('{{ block.settings.success_animation }}') {
+          button.classList.add('animate-{{ block.settings.success_animation }}');
+          setTimeout(() => {
+            button.classList.remove('animate-{{ block.settings.success_animation }}');
+          }, {{ block.settings.animation_duration | default: 1000 }});
+        }
+        break;
+        
+      default: // 'default'
+        if (textDefault) textDefault.style.display = 'inline';
+        if (iconDefault) iconDefault.style.display = 'inline';
+        delete button.dataset.itemId;
+    }
+
+    // Update counter if enabled
+    if (counter && data.totalCount !== undefined) {
+      counter.textContent = data.totalCount;
+      counter.style.display = data.totalCount > 0 ? 'flex' : 'none';
+    }
+  }
+
+  // Enhanced notification system
+  function showNotification(message, type = 'info', duration = {{ block.settings.notification_duration | default: 3000 }}) {
+    if ('{{ block.settings.show_notifications }}' !== 'true') return;
+
+    const notification = document.createElement('div');
+    const position = '{{ block.settings.notification_position | default: "top-right" }}';
+    
+    notification.className = `moonbox-notification moonbox-notification--${type} moonbox-notification--${position}`;
+    notification.innerHTML = `
+      <div class="moonbox-notification__content">
+        <span class="moonbox-notification__icon">${getNotificationIcon(type)}</span>
+        <span class="moonbox-notification__message">${message}</span>
+        <button class="moonbox-notification__close" onclick="this.parentElement.parentElement.remove()">×</button>
+      </div>
+    `;
+    
+    // Add notification styles if not already present
+    if (!document.querySelector('#moonbox-notification-styles')) {
+      const styles = document.createElement('style');
+      styles.id = 'moonbox-notification-styles';
+      styles.textContent = getNotificationStyles();
+      document.head.appendChild(styles);
+    }
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove after duration
+    setTimeout(() => {
+      if (notification.parentElement) {
+        notification.classList.add('moonbox-notification--removing');
+        setTimeout(() => notification.remove(), 300);
+      }
+    }, duration);
+  }
+
+  function getNotificationIcon(type) {
+    const icons = {
+      success: '✓',
+      error: '✕',
+      warning: '⚠',
+      info: 'ℹ'
+    };
+    return icons[type] || icons.info;
+  }
+
+  function getNotificationStyles() {
+    return `
+      .moonbox-notification {
+        position: fixed;
+        z-index: 10000;
+        background: {{ block.settings.notification_bg_color | default: '#333' }};
+        color: {{ block.settings.notification_text_color | default: '#fff' }};
+        border-radius: {{ block.settings.notification_border_radius | default: 4 }}px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        font-size: 14px;
+        max-width: 400px;
+        animation: slideIn 0.3s ease;
+      }
+      
+      .moonbox-notification--top-right { top: 20px; right: 20px; }
+      .moonbox-notification--top-left { top: 20px; left: 20px; }
+      .moonbox-notification--bottom-right { bottom: 20px; right: 20px; }
+      .moonbox-notification--bottom-left { bottom: 20px; left: 20px; }
+      .moonbox-notification--top-center { top: 20px; left: 50%; transform: translateX(-50%); }
+      .moonbox-notification--bottom-center { bottom: 20px; left: 50%; transform: translateX(-50%); }
+      
+      .moonbox-notification--success { background: {{ block.settings.success_color | default: '#28a745' }}; }
+      .moonbox-notification--error { background: {{ block.settings.error_color | default: '#dc3545' }}; }
+      .moonbox-notification--warning { background: {{ block.settings.warning_color | default: '#ffc107' }}; color: #000; }
+      
+      .moonbox-notification__content {
+        display: flex;
+        align-items: center;
+        padding: 12px 16px;
+        gap: 8px;
+      }
+      
+      .moonbox-notification__icon {
+        font-weight: bold;
+        font-size: 16px;
+      }
+      
+      .moonbox-notification__message {
+        flex: 1;
+      }
+      
+      .moonbox-notification__close {
+        background: none;
+        border: none;
+        color: inherit;
+        cursor: pointer;
+        font-size: 18px;
+        padding: 0;
+        margin-left: 8px;
+      }
+      
+      .moonbox-notification--removing {
+        animation: slideOut 0.3s ease;
+      }
+      
+      @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+      }
+      
+      @keyframes slideOut {
+        from { transform: translateX(0); opacity: 1; }
+        to { transform: translateX(100%); opacity: 0; }
+      }
+    `;
+  }
+
+  // Enhanced wishlist counter management
+  async function updateWishlistCounter() {
+    if ('{{ block.settings.show_counter }}' !== 'true') return;
+    
+    try {
+      const result = await getWishlistItems();
+      const count = result.ok ? (result.items?.length || 0) : 0;
+      
+      document.querySelectorAll('[data-wishlist-count]').forEach(counter => {
+        counter.textContent = count;
+        counter.style.display = count > 0 ? 'flex' : 'none';
+      });
+      
+      // Update page title if enabled
+      if ('{{ block.settings.update_page_title }}' === 'true' && count > 0) {
+        document.title = `(${count}) ${document.title.replace(/^\(\d+\)\s/, '')}`;
+      }
+      
+    } catch (error) {
+      log(`Counter update error: ${error.message}`, 'error');
+    }
+  }
+
+  // Enhanced initialization
+  async function initWishlistButton() {
+    const blocks = document.querySelectorAll('.moonbox-wishlist-block');
+    log(`Initializing ${blocks.length} wishlist blocks`);
+    
+    // Update global counter first
+    await updateWishlistCounter();
+    
+    blocks.forEach(async (block) => {
+      const button = block.querySelector('[data-moonbox-wishlist-toggle]');
+      const productId = block.dataset.productId;
+      const variantId = block.dataset.variantId;
+      
+      if (!button || !productId) {
+        log('Missing button or product ID', 'error');
+        return;
+      }
+
+      log(`Initializing button for product ${productId}, variant ${variantId}`);
+
+      // Check initial status
+      try {
+        const result = await getWishlistItems();
+        const existingItem = result.ok && result.items ? 
+          result.items.find(item => item.product_id == productId && item.variant_id == variantId) : null;
+        
+        if (existingItem) {
+          updateButtonState(button, 'added', { 
+            itemId: existingItem.id,
+            totalCount: result.items.length 
+          });
+        } else {
+          updateButtonState(button, 'default', { 
+            totalCount: result.items?.length || 0 
+          });
+        }
+      } catch (error) {
+        log(`Initial status check failed: ${error.message}`, 'error');
+      }
+
+      // Enhanced click handler
+      button.addEventListener('click', async function(e) {
+        e.preventDefault();
+        
+        if (button.classList.contains('loading')) return;
+        
+        const isAdded = button.classList.contains('added');
+        updateButtonState(button, 'loading');
+        
+        try {
+          let result;
+          
+          if (isAdded) {
+            const itemId = button.dataset.itemId;
+            result = await removeFromWishlist(itemId);
+            
+            if (result.ok) {
+              updateButtonState(button, 'default');
+              showNotification(
+                '{{ block.settings.removed_message | default: "Removed from wishlist" }}', 
+                'success'
+              );
+              
+              // Analytics tracking
+              if (typeof gtag !== 'undefined') {
+                gtag('event', 'remove_from_wishlist', {
+                  currency: '{{ shop.currency }}',
+                  value: parseFloat('{{ product.price | money_without_currency }}'),
+                  items: [{
+                    item_id: productId,
+                    item_name: '{{ product.title | escape }}',
+                    item_variant: variantId
+                  }]
+                });
+              }
+            }
+          } else {
+            result = await addToWishlist(productId, variantId, {
+              title: '{{ product.title | escape }}',
+              price: '{{ product.price | money }}',
+              image: '{{ product.featured_image | img_url: "300x300" }}',
+              handle: '{{ product.handle }}',
+              collection_id: '{{ collection.id | default: "" }}'
+            });
+            
+            if (result.ok) {
+              updateButtonState(button, 'added', { 
+                itemId: result.item?.id || result.item_id 
+              });
+              showNotification(
+                '{{ block.settings.added_message | default: "Added to wishlist!" }}', 
+                'success'
+              );
+              
+              // Analytics tracking
+              if (typeof gtag !== 'undefined') {
+                gtag('event', 'add_to_wishlist', {
+                  currency: '{{ shop.currency }}',
+                  value: parseFloat('{{ product.price | money_without_currency }}'),
+                  items: [{
+                    item_id: productId,
+                    item_name: '{{ product.title | escape }}',
+                    item_variant: variantId
+                  }]
+                });
+              }
+            }
+          }
+          
+          if (!result.ok) {
+            throw new Error(result.error || 'Unknown error');
+          }
+          
+          // Update global counter
+          await updateWishlistCounter();
+          
+        } catch (error) {
+          log(`Wishlist toggle error: ${error.message}`, 'error');
+          updateButtonState(button, isAdded ? 'added' : 'default');
+          showNotification(
+            '{{ block.settings.error_message | default: "Error updating wishlist" }}', 
+            'error'
+          );
+        }
+      });
+    });
+  }
+
+  // Enhanced event listeners
+  function setupEventListeners() {
+    // Re-initialize on variant changes
+    document.addEventListener('variant:change', initWishlistButton);
+    
+    // Re-initialize on AJAX cart updates
+    document.addEventListener('cart:updated', initWishlistButton);
+    
+    // Handle page visibility changes
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        updateWishlistCounter();
+      }
+    });
+    
+    // Keyboard accessibility
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        const target = e.target.closest('[data-moonbox-wishlist-toggle]');
+        if (target) {
+          e.preventDefault();
+          target.click();
+        }
+      }
+    });
+  }
+
+  // Initialize everything
+  function init() {
+    log('MoonBox Wishlist initializing...');
+    
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => {
+        initWishlistButton();
+        setupEventListeners();
+      });
+    } else {
+      initWishlistButton();
+      setupEventListeners();
+    }
+    
+    log('MoonBox Wishlist initialized');
+  }
+
+  // Start initialization
+  init();
+
+  // Expose API for external use
+  window.MoonBoxWishlist = {
+    add: addToWishlist,
+    remove: removeFromWishlist,
+    getItems: getWishlistItems,
+    updateCounter: updateWishlistCounter,
+    showNotification: showNotification,
+    version: '2.0.0'
+  };
+
+})();
+</script>
 
   // Função para adicionar item à wishlist
   async function addToWishlist(productId, variantId) {
@@ -258,57 +849,159 @@
 
 {% schema %}
 {
-  "name": "MoonBox Wishlist",
+  "name": "MoonBox Wishlist Enhanced",
   "target": "section",
   "available_if": "{{ app.metafields.moonbox.enabled }}",
   "settings": [
     {
       "type": "header",
-      "content": "Configurações do Botão"
+      "content": "🎨 Button Appearance"
     },
     {
       "type": "text",
       "id": "button_text",
-      "label": "Texto do Botão",
-      "default": "Adicionar à Lista"
+      "label": "Button Text",
+      "default": "Add to Wishlist"
     },
     {
       "type": "text",
       "id": "added_text",
-      "label": "Texto quando Adicionado",
-      "default": "Na Lista ❤️"
+      "label": "Added State Text",
+      "default": "In Wishlist ❤️"
+    },
+    {
+      "type": "text",
+      "id": "loading_text",
+      "label": "Loading Text",
+      "default": "Loading..."
     },
     {
       "type": "color",
       "id": "button_bg_color",
-      "label": "Cor de Fundo",
+      "label": "Background Color",
       "default": "#000000"
     },
     {
       "type": "color",
       "id": "button_text_color",
-      "label": "Cor do Texto",
+      "label": "Text Color",
       "default": "#ffffff"
     },
     {
       "type": "color",
       "id": "added_bg_color",
-      "label": "Cor de Fundo (Adicionado)",
+      "label": "Added State Background",
       "default": "#28a745"
+    },
+    {
+      "type": "color",
+      "id": "added_text_color",
+      "label": "Added State Text Color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "checkbox",
+      "id": "gradient_bg",
+      "label": "Enable Gradient Background",
+      "default": false
+    },
+    {
+      "type": "color",
+      "id": "gradient_end_color",
+      "label": "Gradient End Color",
+      "default": "#333333",
+      "info": "Only used if gradient is enabled"
+    },
+    {
+      "type": "select",
+      "id": "gradient_direction",
+      "label": "Gradient Direction",
+      "options": [
+        { "value": "45deg", "label": "Diagonal ↗" },
+        { "value": "90deg", "label": "Vertical ↑" },
+        { "value": "180deg", "label": "Horizontal →" },
+        { "value": "135deg", "label": "Diagonal ↖" }
+      ],
+      "default": "45deg"
+    },
+    {
+      "type": "header",
+      "content": "📐 Layout & Spacing"
+    },
+    {
+      "type": "range",
+      "id": "button_padding_vertical",
+      "label": "Vertical Padding (px)",
+      "min": 4,
+      "max": 24,
+      "step": 2,
+      "default": 12
+    },
+    {
+      "type": "range",
+      "id": "button_padding_horizontal",
+      "label": "Horizontal Padding (px)",
+      "min": 8,
+      "max": 32,
+      "step": 2,
+      "default": 16
+    },
+    {
+      "type": "range",
+      "id": "icon_text_gap",
+      "label": "Icon-Text Gap (px)",
+      "min": 4,
+      "max": 16,
+      "step": 2,
+      "default": 8
     },
     {
       "type": "range",
       "id": "button_border_radius",
-      "label": "Raio da Borda (px)",
+      "label": "Border Radius (px)",
       "min": 0,
-      "max": 20,
+      "max": 50,
       "step": 1,
       "default": 4
     },
     {
       "type": "range",
+      "id": "button_min_width",
+      "label": "Minimum Width (px)",
+      "min": 80,
+      "max": 300,
+      "step": 10,
+      "default": 120
+    },
+    {
+      "type": "range",
+      "id": "button_max_width",
+      "label": "Maximum Width (px)",
+      "min": 200,
+      "max": 500,
+      "step": 10,
+      "default": 300,
+      "info": "Set to 500 for no limit"
+    },
+    {
+      "type": "select",
+      "id": "content_alignment",
+      "label": "Content Alignment",
+      "options": [
+        { "value": "flex-start", "label": "Left" },
+        { "value": "center", "label": "Center" },
+        { "value": "flex-end", "label": "Right" }
+      ],
+      "default": "center"
+    },
+    {
+      "type": "header",
+      "content": "🎭 Typography"
+    },
+    {
+      "type": "range",
       "id": "button_font_size",
-      "label": "Tamanho da Fonte (px)",
+      "label": "Font Size (px)",
       "min": 10,
       "max": 24,
       "step": 1,
@@ -317,32 +1010,200 @@
     {
       "type": "select",
       "id": "button_font_weight",
-      "label": "Peso da Fonte",
+      "label": "Font Weight",
       "options": [
+        { "value": "300", "label": "Light" },
         { "value": "400", "label": "Normal" },
-        { "value": "500", "label": "Médio" },
+        { "value": "500", "label": "Medium" },
         { "value": "600", "label": "Semi-Bold" },
         { "value": "700", "label": "Bold" }
       ],
       "default": "500"
     },
     {
+      "type": "select",
+      "id": "text_transform",
+      "label": "Text Transform",
+      "options": [
+        { "value": "none", "label": "None" },
+        { "value": "uppercase", "label": "UPPERCASE" },
+        { "value": "lowercase", "label": "lowercase" },
+        { "value": "capitalize", "label": "Capitalize" }
+      ],
+      "default": "none"
+    },
+    {
       "type": "range",
-      "id": "button_min_width",
-      "label": "Largura Mínima (px)",
-      "min": 80,
-      "max": 200,
-      "step": 10,
-      "default": 120
+      "id": "letter_spacing",
+      "label": "Letter Spacing (px)",
+      "min": -2,
+      "max": 4,
+      "step": 0.5,
+      "default": 0
+    },
+    {
+      "type": "text",
+      "id": "font_family",
+      "label": "Custom Font Family",
+      "default": "inherit",
+      "info": "e.g., 'Arial, sans-serif' or 'inherit'"
     },
     {
       "type": "header",
-      "content": "Configurações Mobile"
+      "content": "🎯 Icon Settings"
+    },
+    {
+      "type": "select",
+      "id": "icon_position",
+      "label": "Icon Position",
+      "options": [
+        { "value": "left", "label": "Left" },
+        { "value": "right", "label": "Right" }
+      ],
+      "default": "left"
+    },
+    {
+      "type": "select",
+      "id": "icon_style",
+      "label": "Icon Style",
+      "options": [
+        { "value": "filled", "label": "Filled ❤️" },
+        { "value": "outline", "label": "Outline ♡" }
+      ],
+      "default": "filled"
+    },
+    {
+      "type": "range",
+      "id": "icon_size",
+      "label": "Icon Size (px)",
+      "min": 12,
+      "max": 32,
+      "step": 2,
+      "default": 16
+    },
+    {
+      "type": "header",
+      "content": "✨ Hover Effects"
+    },
+    {
+      "type": "select",
+      "id": "hover_effect",
+      "label": "Hover Effect",
+      "options": [
+        { "value": "opacity", "label": "Opacity Change" },
+        { "value": "scale", "label": "Scale Transform" },
+        { "value": "lift", "label": "Lift Up" },
+        { "value": "glow", "label": "Glow Effect" }
+      ],
+      "default": "opacity"
+    },
+    {
+      "type": "range",
+      "id": "hover_opacity",
+      "label": "Hover Opacity",
+      "min": 0.3,
+      "max": 1.0,
+      "step": 0.1,
+      "default": 0.8,
+      "info": "Only for opacity effect"
+    },
+    {
+      "type": "range",
+      "id": "hover_scale",
+      "label": "Hover Scale",
+      "min": 1.0,
+      "max": 1.2,
+      "step": 0.05,
+      "default": 1.05,
+      "info": "Only for scale effect"
+    },
+    {
+      "type": "range",
+      "id": "hover_lift",
+      "label": "Hover Lift (px)",
+      "min": 1,
+      "max": 10,
+      "step": 1,
+      "default": 2,
+      "info": "Only for lift effect"
+    },
+    {
+      "type": "color",
+      "id": "hover_bg_color",
+      "label": "Hover Background Color",
+      "info": "Optional - overrides default hover"
+    },
+    {
+      "type": "color",
+      "id": "hover_text_color",
+      "label": "Hover Text Color",
+      "info": "Optional - overrides default hover"
+    },
+    {
+      "type": "header",
+      "content": "🎬 Animations"
+    },
+    {
+      "type": "select",
+      "id": "initial_animation",
+      "label": "Initial Animation",
+      "options": [
+        { "value": "", "label": "None" },
+        { "value": "pulse", "label": "Pulse" },
+        { "value": "bounce", "label": "Bounce" }
+      ],
+      "default": ""
+    },
+    {
+      "type": "select",
+      "id": "success_animation",
+      "label": "Success Animation",
+      "options": [
+        { "value": "", "label": "None" },
+        { "value": "pulse", "label": "Pulse" },
+        { "value": "bounce", "label": "Bounce" }
+      ],
+      "default": "pulse"
+    },
+    {
+      "type": "range",
+      "id": "animation_duration",
+      "label": "Animation Duration (ms)",
+      "min": 300,
+      "max": 2000,
+      "step": 100,
+      "default": 1000
+    },
+    {
+      "type": "range",
+      "id": "transition_duration",
+      "label": "Transition Duration (s)",
+      "min": 0.1,
+      "max": 1.0,
+      "step": 0.1,
+      "default": 0.3
+    },
+    {
+      "type": "select",
+      "id": "transition_easing",
+      "label": "Transition Easing",
+      "options": [
+        { "value": "ease", "label": "Ease" },
+        { "value": "ease-in", "label": "Ease In" },
+        { "value": "ease-out", "label": "Ease Out" },
+        { "value": "ease-in-out", "label": "Ease In-Out" },
+        { "value": "linear", "label": "Linear" }
+      ],
+      "default": "ease"
+    },
+    {
+      "type": "header",
+      "content": "📱 Mobile Settings"
     },
     {
       "type": "range",
       "id": "mobile_font_size",
-      "label": "Tamanho da Fonte Mobile (px)",
+      "label": "Mobile Font Size (px)",
       "min": 10,
       "max": 20,
       "step": 1,
@@ -350,55 +1211,306 @@
     },
     {
       "type": "range",
+      "id": "mobile_padding_vertical",
+      "label": "Mobile Vertical Padding (px)",
+      "min": 4,
+      "max": 20,
+      "step": 2,
+      "default": 10
+    },
+    {
+      "type": "range",
+      "id": "mobile_padding_horizontal",
+      "label": "Mobile Horizontal Padding (px)",
+      "min": 8,
+      "max": 24,
+      "step": 2,
+      "default": 14
+    },
+    {
+      "type": "range",
       "id": "mobile_min_width",
-      "label": "Largura Mínima Mobile (px)",
+      "label": "Mobile Minimum Width (px)",
       "min": 60,
-      "max": 150,
+      "max": 200,
       "step": 10,
       "default": 100
     },
     {
+      "type": "range",
+      "id": "mobile_icon_size",
+      "label": "Mobile Icon Size (px)",
+      "min": 10,
+      "max": 24,
+      "step": 2,
+      "default": 14
+    },
+    {
+      "type": "range",
+      "id": "mobile_icon_gap",
+      "label": "Mobile Icon Gap (px)",
+      "min": 2,
+      "max": 12,
+      "step": 2,
+      "default": 6
+    },
+    {
+      "type": "checkbox",
+      "id": "hide_text_mobile",
+      "label": "Hide Text on Mobile",
+      "default": false,
+      "info": "Show only icon on mobile devices"
+    },
+    {
       "type": "header",
-      "content": "Notificações"
+      "content": "🔔 Notifications"
     },
     {
       "type": "checkbox",
       "id": "show_notifications",
-      "label": "Mostrar Notificações",
+      "label": "Enable Notifications",
       "default": true
+    },
+    {
+      "type": "select",
+      "id": "notification_position",
+      "label": "Notification Position",
+      "options": [
+        { "value": "top-right", "label": "Top Right" },
+        { "value": "top-left", "label": "Top Left" },
+        { "value": "top-center", "label": "Top Center" },
+        { "value": "bottom-right", "label": "Bottom Right" },
+        { "value": "bottom-left", "label": "Bottom Left" },
+        { "value": "bottom-center", "label": "Bottom Center" }
+      ],
+      "default": "top-right"
+    },
+    {
+      "type": "range",
+      "id": "notification_duration",
+      "label": "Notification Duration (ms)",
+      "min": 1000,
+      "max": 10000,
+      "step": 500,
+      "default": 3000
     },
     {
       "type": "text",
       "id": "added_message",
-      "label": "Mensagem de Adicionado",
-      "default": "Adicionado à lista de desejos!"
+      "label": "Added Message",
+      "default": "Added to wishlist!"
     },
     {
       "type": "text",
       "id": "removed_message",
-      "label": "Mensagem de Removido",
-      "default": "Removido da lista de desejos"
+      "label": "Removed Message",
+      "default": "Removed from wishlist"
     },
     {
       "type": "text",
       "id": "error_message",
-      "label": "Mensagem de Erro",
-      "default": "Erro ao atualizar lista de desejos"
+      "label": "Error Message",
+      "default": "Error updating wishlist"
+    },
+    {
+      "type": "color",
+      "id": "notification_bg_color",
+      "label": "Notification Background",
+      "default": "#333333"
+    },
+    {
+      "type": "color",
+      "id": "notification_text_color",
+      "label": "Notification Text Color",
+      "default": "#ffffff"
     },
     {
       "type": "header",
-      "content": "Configurações Técnicas"
+      "content": "📊 Counter & Analytics"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_counter",
+      "label": "Show Wishlist Counter",
+      "default": false,
+      "info": "Display item count badge"
+    },
+    {
+      "type": "range",
+      "id": "counter_size",
+      "label": "Counter Size (px)",
+      "min": 14,
+      "max": 24,
+      "step": 2,
+      "default": 18
+    },
+    {
+      "type": "range",
+      "id": "counter_offset",
+      "label": "Counter Offset (px)",
+      "min": 4,
+      "max": 16,
+      "step": 2,
+      "default": 8
+    },
+    {
+      "type": "color",
+      "id": "counter_bg_color",
+      "label": "Counter Background",
+      "default": "#ff4444"
+    },
+    {
+      "type": "color",
+      "id": "counter_text_color",
+      "label": "Counter Text Color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "checkbox",
+      "id": "update_page_title",
+      "label": "Update Page Title with Count",
+      "default": false,
+      "info": "Shows count in browser tab"
+    },
+    {
+      "type": "header",
+      "content": "♿ Accessibility"
+    },
+    {
+      "type": "text",
+      "id": "aria_label",
+      "label": "ARIA Label",
+      "default": "Toggle wishlist",
+      "info": "Screen reader description"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_tooltip",
+      "label": "Show Tooltip",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "tooltip_text",
+      "label": "Tooltip Text",
+      "default": "Add to wishlist"
+    },
+    {
+      "type": "header",
+      "content": "🎨 Advanced Styling"
+    },
+    {
+      "type": "checkbox",
+      "id": "inherit_theme_styles",
+      "label": "Inherit Theme Styles",
+      "default": false,
+      "info": "Use theme's button and font styles"
+    },
+    {
+      "type": "range",
+      "id": "border_width",
+      "label": "Border Width (px)",
+      "min": 0,
+      "max": 5,
+      "step": 1,
+      "default": 0
+    },
+    {
+      "type": "color",
+      "id": "border_color",
+      "label": "Border Color",
+      "default": "transparent"
+    },
+    {
+      "type": "color",
+      "id": "added_border_color",
+      "label": "Added State Border Color",
+      "info": "Optional - border when in wishlist"
+    },
+    {
+      "type": "text",
+      "id": "box_shadow",
+      "label": "Box Shadow",
+      "default": "none",
+      "info": "CSS box-shadow value, e.g., '0 2px 4px rgba(0,0,0,0.1)'"
+    },
+    {
+      "type": "header",
+      "content": "⚙️ Technical Settings"
     },
     {
       "type": "url",
       "id": "backend_url",
-      "label": "URL do Backend",
-      "info": "Deixe em branco para usar localhost:8081 em desenvolvimento"
+      "label": "Backend API URL",
+      "info": "Leave blank for localhost:8081 in development"
+    },
+    {
+      "type": "checkbox",
+      "id": "debug_mode",
+      "label": "Debug Mode",
+      "default": false,
+      "info": "Enable console logging for troubleshooting"
+    },
+    {
+      "type": "range",
+      "id": "api_timeout",
+      "label": "API Timeout (ms)",
+      "min": 3000,
+      "max": 30000,
+      "step": 1000,
+      "default": 10000
+    },
+    {
+      "type": "range",
+      "id": "api_retries",
+      "label": "API Retry Attempts",
+      "min": 1,
+      "max": 5,
+      "step": 1,
+      "default": 3
+    },
+    {
+      "type": "range",
+      "id": "loading_speed",
+      "label": "Loading Animation Speed (s)",
+      "min": 0.5,
+      "max": 3.0,
+      "step": 0.5,
+      "default": 1.0
     }
   ],
   "presets": [
     {
-      "name": "MoonBox Wishlist Button"
+      "name": "MoonBox Wishlist Enhanced",
+      "settings": {
+        "button_text": "Add to Wishlist",
+        "added_text": "In Wishlist ❤️",
+        "show_notifications": true,
+        "show_counter": false,
+        "debug_mode": false
+      }
+    },
+    {
+      "name": "Minimal Wishlist Button",
+      "settings": {
+        "button_text": "♡",
+        "added_text": "❤️",
+        "hide_text_mobile": true,
+        "show_notifications": false,
+        "button_min_width": 40,
+        "icon_size": 20
+      }
+    },
+    {
+      "name": "Premium Wishlist Button",
+      "settings": {
+        "gradient_bg": true,
+        "hover_effect": "glow",
+        "success_animation": "bounce",
+        "show_counter": true,
+        "show_notifications": true,
+        "inherit_theme_styles": true
+      }
     }
   ]
 }
