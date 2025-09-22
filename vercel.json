@@ -1,10 +1,5 @@
 {
   "buildCommand": "cd frontend && npm run build",
   "installCommand": "cd frontend && npm install",
-  "framework": "nextjs",
-  "functions": {
-    "frontend/pages/api/**/*.js": {
-      "runtime": "20.x"
-    }
-  }
+  "framework": "nextjs"
 }
