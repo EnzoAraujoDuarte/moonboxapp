@@ -4,7 +4,7 @@
   "framework": "nextjs",
   "functions": {
     "frontend/pages/api/**/*.js": {
-      "runtime": "nodejs18.x"
+      "runtime": "20.x"
     }
   }
 }
