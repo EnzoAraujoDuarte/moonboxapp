@@ -1,8 +1,18 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // Removed 'output: export' to fix routes-manifest.json error on Vercel
-  // This allows proper server-side rendering and routing
+  // Ensure proper build configuration for Vercel deployment
+  experimental: {
+    esmExternals: false
+  },
+  // Optimize for production builds
+  swcMinify: true,
+  // Ensure proper static generation
+  trailingSlash: false,
+  // Configure image optimization
+  images: {
+    unoptimized: true
+  }
 };
 
 module.exports = nextConfig;
